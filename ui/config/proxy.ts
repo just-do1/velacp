@@ -8,21 +8,21 @@
 export default {
   dev: {
     '/api/': {
-      target: 'http://localhost:9001',
+      target: 'https://preview.pro.ant.design',
       changeOrigin: true,
       pathRewrite: { '^': '' },
     },
   },
   test: {
     '/api/': {
-      target: 'http://localhost:9001',
+      target: 'https://preview.pro.ant.design',
       changeOrigin: true,
       pathRewrite: { '^': '' },
     },
   },
   pre: {
     '/api/': {
-      target: 'http://localhost:9001',
+      target: 'your pre url',
       changeOrigin: true,
       pathRewrite: { '^': '' },
     },

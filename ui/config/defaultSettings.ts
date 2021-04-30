@@ -12,9 +12,9 @@ const Settings: LayoutSettings & {
   fixedHeader: false,
   fixSiderbar: true,
   colorWeak: false,
-  title: '',
+  title: 'KubeVela',
   pwa: false,
-  logo: 'https://raw.githubusercontent.com/oam-dev/kubevela/master/docs/resources/KubeVela-06.png',
+  logo: '/icons/KubeVela-04.png',
   iconfontUrl: '',
 };
 

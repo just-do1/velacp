@@ -1,5 +1,7 @@
 // https://umijs.org/config/
 import { defineConfig } from 'umi';
+import { join } from 'path';
+
 import defaultSettings from './defaultSettings';
 import proxy from './proxy';
 import routes from './routes';
@@ -13,10 +15,12 @@ export default defineConfig({
     hmr: true,
   },
   layout: {
+    // https://umijs.org/zh-CN/plugins/plugin-layout
     locale: true,
     siderWidth: 208,
     ...defaultSettings,
   },
+  // https://umijs.org/zh-CN/plugins/plugin-locale
   locale: {
     // default zh-CN
     default: 'zh-CN',
@@ -45,9 +49,20 @@ export default defineConfig({
   manifest: {
     basePath: '/',
   },
-  openAPI: {
-    requestLibPath: "import { request } from 'umi'",
-    schemaPath: 'https://gw.alipayobjects.com/os/antfincdn/Zd7dLTHUjE/ant-design-pro.json',
-    mock: true,
-  },
+  // Fast Refresh 热更新
+  fastRefresh: {},
+  openAPI: [
+    {
+      requestLibPath: "import { request } from 'umi'",
+      // 或者使用在线的版本
+      // schemaPath: "https://gw.alipayobjects.com/os/antfincdn/M%24jrzTTYJN/oneapi.json"
+      schemaPath: join(__dirname, 'oneapi.json'),
+      mock: false,
+    },
+    {
+      requestLibPath: "import { request } from 'umi'",
+      schemaPath: 'https://gw.alipayobjects.com/os/antfincdn/CA1dOm%2631B/openapi.json',
+      projectName: 'swagger',
+    },
+  ],
 });

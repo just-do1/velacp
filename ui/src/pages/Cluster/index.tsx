@@ -1,65 +1,70 @@
-import React, { useRef, useState } from 'react';
-import { Button, message, Space, Tooltip } from 'antd';
+import {
+  addCluster,
+  listClusters,
+  removeCluster,
+  updateCluster,
+} from '@/services/kubevela/clusterapi';
 import { PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-layout';
 import type { ActionType, ProColumns } from '@ant-design/pro-table';
 import ProTable from '@ant-design/pro-table';
-import { PageContainer } from '@ant-design/pro-layout';
-import { FormattedMessage, useModel } from 'umi';
-import UpdateForm from './components/UpdateForm';
+import { Button, message, Space, Tooltip } from 'antd';
+import moment from 'moment';
+import React, { useRef, useState } from 'react';
+import { FormattedMessage, Link } from 'umi';
+import InputForm from './InputForm';
 
 interface UpdateState {
   visible: boolean;
   value?: API.ClusterType;
 }
 
-const ClusterList: React.FC = () => {
+const ClusterList = () => {
   /** 新建窗口的弹窗 */
   const [createModalVisible, handleCreateModalVisible] = useState<boolean>(false);
   const [updateModal, handleUpdateModal] = useState<UpdateState>({ visible: false });
 
   const actionRef = useRef<ActionType>();
 
-  const { listClusters, addCluster, removeCluster, updateCluster } = useModel('useClusters');
-
   const handleAdd = async (fields: API.ClusterType) => {
-    const hide = message.loading('正在添加');
+    const hide = message.loading('Adding');
     try {
       await addCluster({ ...fields });
       hide();
-      message.success('添加成功');
+      message.success('Added successfully');
       return true;
     } catch (error) {
       hide();
-      message.error('添加失败请重试！');
+      message.error('Failed to add; retry again!');
       return false;
     }
   };
 
   const handleUpdate = async (val: API.ClusterType) => {
-    const hide = message.loading('正在更改');
+    const hide = message.loading('Updating');
     try {
       const newVal = await updateCluster(val);
-      handleUpdateModal({ ...updateModal, value: newVal });
+      handleUpdateModal({ ...updateModal, value: newVal.cluster });
       hide();
-      message.success('更改成功，即将刷新');
+      message.success('Updated successfully');
       return true;
     } catch (error) {
       hide();
-      message.error('更改失败，请重试');
+      message.error('Failed to update; retry again!');
       return false;
     }
   };
 
   const handleRemove = async (val: API.ClusterType) => {
-    const hide = message.loading('正在删除');
+    const hide = message.loading('Deleting');
     try {
       await removeCluster(val);
       hide();
-      message.success('删除成功，即将刷新');
+      message.success('Deleted successfully');
       return true;
     } catch (error) {
       hide();
-      message.error('删除失败，请重试');
+      message.error('Failed to delete; retry again!');
       return false;
     }
   };
@@ -75,14 +80,11 @@ const ClusterList: React.FC = () => {
       title: 'Name',
       dataIndex: 'name',
       render: (dom, entity) => (
-        <a
-          onClick={() => {
-            // setShowDetail(true);
-            message.warning('TODO: 展示 cluster');
-          }}
-        >
-          {dom}
-        </a>
+        // https://pro.ant.design/docs/router-and-nav-cn
+        // 带参数的路由
+        <Link to={{ pathname: '/clusters/' + entity.name }}>
+          <a>{dom}</a>
+        </Link>
       ),
     },
     {
@@ -99,17 +101,25 @@ const ClusterList: React.FC = () => {
           </Tooltip>
         </>
       ),
+      search: false,
       dataIndex: 'updatedAt',
       valueType: 'date',
-      sorter: (a, b) => a.updatedAt - b.updatedAt,
+      sorter: (a, b) => {
+        if (a.updatedAt && b.updatedAt) {
+          return a.updatedAt - b.updatedAt;
+        }
+        return 0;
+      },
       render: (_, record) => {
-        var date = new Date(record.updatedAt * 1000);
-        return date.toLocaleString();
+        if (record.updatedAt) {
+          return moment(record.updatedAt).format('YYYY-MM-DD');
+        }
+        return '';
       },
     },
 
     {
-      title: <FormattedMessage id="pages.clusterTable.titleOption" defaultMessage="操作" />,
+      title: <FormattedMessage id="pages.table.titleOption" defaultMessage="Option" />,
       width: '164px',
       dataIndex: 'option',
       valueType: 'option',
@@ -122,7 +132,7 @@ const ClusterList: React.FC = () => {
               handleUpdateModal({ visible: true, value: record });
             }}
           >
-            <FormattedMessage id="pages.clusterTable.edit" defaultMessage="编辑" />
+            <FormattedMessage id="pages.table.edit" defaultMessage="Edit" />
           </Button>
           <Button
             id="delete"
@@ -133,7 +143,7 @@ const ClusterList: React.FC = () => {
               actionRef.current?.reloadAndRest?.();
             }}
           >
-            <FormattedMessage id="pages.clusterTable.delete" defaultMessage="删除" />
+            <FormattedMessage id="pages.table.delete" defaultMessage="Delete" />
           </Button>
         </Space>
       ),
@@ -146,7 +156,7 @@ const ClusterList: React.FC = () => {
         columns={columns}
         rowKey="key"
         dateFormatter="string"
-        headerTitle="查询表格"
+        headerTitle="Table"
         actionRef={actionRef}
         pagination={{
           showQuickJumper: true,
@@ -163,14 +173,12 @@ const ClusterList: React.FC = () => {
               handleCreateModalVisible(true);
             }}
           >
-            <PlusOutlined /> <FormattedMessage id="pages.clusterTable.new" defaultMessage="新建" />
+            <PlusOutlined /> <FormattedMessage id="pages.table.new" defaultMessage="New" />
           </Button>,
         ]}
         request={async (params, sorter, filter) => {
-          // 表单搜索项会从 params 传入，传递给后端接口。
-          console.log('params', params, 'sorter', sorter, 'filter', filter);
-
-          let clusters = await listClusters();
+          let resp = await listClusters();
+          let clusters = resp.clusters;
 
           if (params.name) {
             clusters = clusters.filter((val) => val.name?.includes(params.name));
@@ -182,11 +190,8 @@ const ClusterList: React.FC = () => {
         }}
       />
 
-      <UpdateForm
-        title={{
-          id: 'pages.clusterTable.updateForm.newCluster',
-          defaultMessage: 'Create Cluster',
-        }}
+      <InputForm
+        title={'Create Cluster'}
         visible={createModalVisible}
         onFinish={async (value: any) => {
           const success = await handleAdd(value as API.ClusterType);
@@ -205,11 +210,8 @@ const ClusterList: React.FC = () => {
         }}
       />
 
-      <UpdateForm
-        title={{
-          id: 'pages.clusterTable.updateForm.updateCluster',
-          defaultMessage: 'Update Cluster',
-        }}
+      <InputForm
+        title={'Update Cluster'}
         visible={updateModal.visible}
         onFinish={async (value: any) => {
           const success = await handleUpdate(value as API.ClusterType);

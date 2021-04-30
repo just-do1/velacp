@@ -1,55 +1,44 @@
-import React, { useRef, useState } from 'react';
-import { Button, message, Space, Tooltip } from 'antd';
+import { listApplications, removeApplication } from '@/services/kubevela/applicationapi';
+import { listClusterNames } from '@/services/kubevela/clusterapi';
 import { PlusOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { PageContainer } from '@ant-design/pro-layout';
 import type { ActionType, ProColumns } from '@ant-design/pro-table';
 import ProTable from '@ant-design/pro-table';
-import { PageContainer } from '@ant-design/pro-layout';
-import { FormattedMessage, Link, useModel } from 'umi';
-import { useHistory } from 'react-router-dom';
-import UpdateForm from './components/UpdateForm';
+import { Button, message, Space, Tooltip } from 'antd';
+import moment from 'moment';
+import { useEffect, useRef, useState } from 'react';
+import { FormattedMessage, Link } from 'umi';
 
-interface UpdateState {
-  visible: boolean;
-  value?: API.ApplicationType;
-}
+const ApplicationList = () => {
+  const [clusterNames, setClusterNames] = useState<string[]>([]);
+  const [selectedCluster, setSelectedCluster] = useState<string>('');
 
-const ApplicationList: React.FC = () => {
-  const [updateModal, handleUpdateModal] = useState<UpdateState>({ visible: false });
+  const clusterEnum = {};
+  clusterNames.forEach((value) => {
+    clusterEnum[value] = { text: value };
+  });
 
   const actionRef = useRef<ActionType>();
 
-  const history = useHistory();
-
-  const { listApplications, removeApplication, updateApplication } = useModel('useApplications');
-
-  const handleUpdate = async (val: API.ApplicationType) => {
-    const hide = message.loading('正在更改');
-    try {
-      const newVal = await updateApplication(val);
-      handleUpdateModal({ ...updateModal, value: newVal });
-      hide();
-      message.success('更改成功，即将刷新');
-      return true;
-    } catch (error) {
-      hide();
-      message.error('更改失败，请重试');
-      return false;
-    }
-  };
-
   const handleRemove = async (val: API.ApplicationType) => {
-    const hide = message.loading('正在删除');
+    const hide = message.loading('Deleting');
     try {
-      await removeApplication(val);
+      await removeApplication(selectedCluster, val);
       hide();
-      message.success('删除成功，即将刷新');
+      message.success('Deleted successfully');
       return true;
     } catch (error) {
       hide();
-      message.error('删除失败，请重试');
+      message.error('Failed to delete; retry again!');
       return false;
     }
   };
+
+  useEffect(() => {
+    listClusterNames().then((resp) => {
+      setClusterNames(resp.clusters);
+    });
+  }, []);
 
   const columns: ProColumns<API.ApplicationType>[] = [
     {
@@ -62,7 +51,17 @@ const ApplicationList: React.FC = () => {
       title: 'Name',
       dataIndex: 'name',
       render: (dom, entity) => (
-        <Link to={'/applications/' + entity.name}>
+        // https://stackoverflow.com/questions/41736048/what-is-a-state-in-link-component-of-react-router
+        // https://reactrouter.com/web/api/Link
+        // use props.match.params.appName and props.location.state.app
+        <Link
+          to={{
+            pathname: `/applications/${entity.name}`,
+            state: {
+              app: entity,
+            },
+          }}
+        >
           <a>{dom}</a>
         </Link>
       ),
@@ -81,31 +80,43 @@ const ApplicationList: React.FC = () => {
           </Tooltip>
         </>
       ),
+      search: false,
       dataIndex: 'updatedAt',
       valueType: 'date',
-      sorter: (a, b) => a.updatedAt - b.updatedAt,
+      sorter: (a, b) => {
+        if (a.updatedAt && b.updatedAt) {
+          return a.updatedAt - b.updatedAt;
+        }
+        return 0;
+      },
       render: (_, record) => {
-        var date = new Date(record.updatedAt * 1000);
-        return date.toLocaleString();
+        if (record.updatedAt) {
+          return moment(record.updatedAt).format('YYYY-MM-DD');
+        }
+        return '';
       },
     },
-
     {
-      title: <FormattedMessage id="pages.applicationTable.titleOption" defaultMessage="操作" />,
+      title: <FormattedMessage id="pages.table.titleOption" defaultMessage="Option" />,
       width: '164px',
       dataIndex: 'option',
       valueType: 'option',
       render: (_, record) => (
         <Space>
-          <Button
-            id="edit"
-            type="primary"
-            onClick={() => {
-              handleUpdateModal({ visible: true, value: record });
+          <Link
+            to={{
+              pathname: `/application-input`,
+              state: {
+                cluster: selectedCluster,
+                app: record,
+              },
             }}
           >
-            <FormattedMessage id="pages.applicationTable.edit" defaultMessage="编辑" />
-          </Button>
+            <Button id="edit" type="primary">
+              <FormattedMessage id="pages.table.edit" defaultMessage="Edit" />
+            </Button>
+          </Link>
+
           <Button
             id="delete"
             type="primary"
@@ -115,20 +126,33 @@ const ApplicationList: React.FC = () => {
               actionRef.current?.reloadAndRest?.();
             }}
           >
-            <FormattedMessage id="pages.applicationTable.delete" defaultMessage="删除" />
+            <FormattedMessage id="pages.table.delete" defaultMessage="Delete" />
           </Button>
         </Space>
       ),
     },
   ];
 
+  if (clusterNames.length > 0) {
+    columns.push({
+      title: 'Cluster',
+      dataIndex: 'cluster',
+      hideInTable: true,
+      filters: true,
+      onFilter: true,
+      valueType: 'select',
+      initialValue: clusterNames[0],
+      valueEnum: clusterEnum,
+    });
+  }
+
   return (
-    <PageContainer>
+    <PageContainer loading={clusterNames.length === 0}>
       <ProTable<API.ApplicationType>
         columns={columns}
         rowKey="key"
         dateFormatter="string"
-        headerTitle="查询表格"
+        headerTitle="Table"
         actionRef={actionRef}
         pagination={{
           showQuickJumper: true,
@@ -138,23 +162,16 @@ const ApplicationList: React.FC = () => {
           labelWidth: 120,
         }}
         toolBarRender={() => [
-          <Button
-            type="primary"
-            key="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              history.push('/applications/create');
-              // handleCreateModalVisible(true);
-            }}
-          >
-            <FormattedMessage id="pages.applicationTable.new" defaultMessage="新建" />
-          </Button>,
+          <Link to={{ pathname: `/application-input`, state: { cluster: selectedCluster } }}>
+            <Button type="primary" key="primary">
+              <PlusOutlined /> <FormattedMessage id="pages.table.new" defaultMessage="New" />
+            </Button>
+          </Link>,
         ]}
         request={async (params, sorter, filter) => {
-          // 表单搜索项会从 params 传入，传递给后端接口。
-          console.log('params', params, 'sorter', sorter, 'filter', filter);
-
-          let apps = await listApplications();
+          setSelectedCluster(params.cluster);
+          const resp = await listApplications(params.cluster);
+          let apps = resp.applications;
 
           if (params.name) {
             apps = apps.filter((val) => val.name?.includes(params.name));
@@ -164,30 +181,6 @@ const ApplicationList: React.FC = () => {
             success: true,
           });
         }}
-      />
-
-      <UpdateForm
-        title={{
-          id: 'pages.applicationTable.updateForm.updateApplication',
-          defaultMessage: 'Update Application',
-        }}
-        visible={updateModal.visible}
-        onFinish={async (value: any) => {
-          const success = await handleUpdate(value as API.ApplicationType);
-          if (success) {
-            handleUpdateModal({ ...updateModal, visible: false });
-            if (actionRef.current) {
-              actionRef.current.reload();
-            }
-          }
-
-          message.success('提交成功');
-          return true;
-        }}
-        onVisibleChange={async (visible) => {
-          handleUpdateModal({ ...updateModal, visible });
-        }}
-        initialValues={updateModal.value}
       />
     </PageContainer>
   );
