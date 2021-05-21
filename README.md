@@ -1,16 +1,14 @@
 # velacp
 
-KubeVela control plane to manage hybrid multi-cloud clusters,
-provide plug-and-play capability management,
-create stream-line application delivery pipelines.
+KubeVela control plane (velacp) includes the UI/CLI and HTTP server components to provide application and cluster management experience based on KubeVela & K8s.
 
 ## Architecture
 
 This project is based on the following tech stacks:
 
 - [Protobuf](https://developers.google.com/protocol-buffers/docs/gotutorial)
-- Go & [Echo](https://echo.labstack.com/)
-- React & Ant Design Pro
+- Golang and [Echo](https://echo.labstack.com/)
+- React and [Ant Design Pro](https://pro.ant.design/)
 - Mongodb
 
 ![alt](docs/images/velacp-arch.png)
@@ -34,7 +32,7 @@ _bin/velacp server \
     --db-name=vela
 ```
 
-The dashboard will be served at localhost:8000 .
+The dashboard will be served at http://localhost:8000 .
 
 ### Cluster
 
@@ -45,15 +43,5 @@ The dashboard will be served at localhost:8000 .
 
 ![alt](docs/images/app-list.png)
 ![alt](docs/images/app-input.png)
+![alt](docs/images/app-detail.png)
 
-### Environment
-
-TODO: UI
-
-### Catalog
-
-The catalog repo has a standard structure format in order to be managed in Vela Control Plane.
-
-See [catalog-example](https://github.com/hongchaodeng/catalog-example) repo for more details.
-
-TODO: UI

@@ -6,8 +6,9 @@ import type { ActionType, ProColumns } from '@ant-design/pro-table';
 import ProTable from '@ant-design/pro-table';
 import { Button, message, Space, Tooltip } from 'antd';
 import moment from 'moment';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FormattedMessage, Link } from 'umi';
+import EditForm from './EditForm';
 
 const ApplicationList = () => {
   const [clusterNames, setClusterNames] = useState<string[]>([]);
@@ -72,6 +73,24 @@ const ApplicationList = () => {
       search: false,
     },
     {
+      title: 'Components',
+      dataIndex: 'components',
+      hideInSearch: true,
+      render: (_, entity) => (
+        <>
+          <Space>
+            {entity.components?.map((comp) => {
+              return (
+                <Button type="primary" size="small">
+                  {comp.type} : {comp.name}
+                </Button>
+              );
+            })}
+          </Space>
+        </>
+      ),
+    },
+    {
       title: (
         <>
           Last Updated
@@ -103,19 +122,13 @@ const ApplicationList = () => {
       valueType: 'option',
       render: (_, record) => (
         <Space>
-          <Link
-            to={{
-              pathname: `/application-input`,
-              state: {
-                cluster: selectedCluster,
-                app: record,
-              },
+          <EditForm
+            app={record}
+            cluster={selectedCluster}
+            onUpdate={() => {
+              actionRef.current?.reloadAndRest?.();
             }}
-          >
-            <Button id="edit" type="primary">
-              <FormattedMessage id="pages.table.edit" defaultMessage="Edit" />
-            </Button>
-          </Link>
+          />
 
           <Button
             id="delete"

@@ -8,7 +8,9 @@ type Config struct {
 }
 
 type DataStore interface {
-	Put(ctx context.Context, kind string, entity interface{}) error
+	Add(ctx context.Context, kind string, entity interface{}) error
+
+	Put(ctx context.Context, kind, name string, entity interface{}) error
 
 	Delete(ctx context.Context, kind, name string) error
 
@@ -16,6 +18,10 @@ type DataStore interface {
 
 	// Find executes a find command and returns an iterator over the matching items.
 	Find(ctx context.Context, kind string) (Iterator, error)
+
+	FindOne(ctx context.Context, kind, name string) (Iterator, error)
+
+	IsExist(ctx context.Context, kind, name string) (bool, error)
 }
 
 type Iterator interface {
