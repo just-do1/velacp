@@ -31,8 +31,8 @@ export async function updateCluster(params: API.ClusterType) {
 }
 
 export async function removeCluster(params: API.ClusterType) {
-  return request<{ cluster: API.ClusterType }>('/api/clusters', {
-    method: 'POST',
+  return request<{ cluster: API.ClusterType }>(`/api/clusters/${params.name}`, {
+    method: 'DELETE',
     data: {
       ...params,
       method: 'delete',
@@ -41,13 +41,13 @@ export async function removeCluster(params: API.ClusterType) {
 }
 
 export async function listComponentDefinitions(cluster: string) {
-  return request<{ componentDefinitions: API.CapabilityType[] }>(
+  return request<{ definitions: API.CapabilityType[] }>(
     `/api/clusters/${cluster}/componentdefinitions`,
   );
 }
 
 export async function listTraitDefinitions(cluster: string) {
-  return request<{ traitDefinitions: API.CapabilityType[] }>(
+  return request<{ definitions: API.CapabilityType[] }>(
     `/api/clusters/${cluster}/traitdefinitions`,
   );
 }
@@ -58,6 +58,14 @@ export async function isVelaInstalled(cluster: string) {
 
 export async function installVelaController(cluster: string, helmrepo: string, version: string) {
   return request<{ version: string }>(`/api/clusters/${cluster}/installvela`, {
-    data: { helmrepo, version },
+    params: { helmrepo, version },
   });
+}
+
+
+export async function getSchema(cluster: string, name: string, namespace: string, type: string) {
+  return request<{ definitions: API.CapabilityType[] }>(
+    `/api/clusters/${cluster}/schema`, {
+      params:{ name, namespace, type },
+    });
 }

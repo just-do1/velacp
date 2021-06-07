@@ -17,8 +17,9 @@ var _ RestServer = &restServer{}
 
 var frontendRoutes = []string{
 	"/",
-	"/clusters",
-	"/applicatons",
+	"^/clusters",
+	"^/clusters/*",
+	"^/applicatons",
 }
 
 type Config struct {
@@ -70,19 +71,24 @@ func (s *restServer) Run(ctx context.Context) error {
 func (s *restServer) registerServices() {
 	// All react routes need to be setup here. Otherwise the server returns 404 not found.
 	rewrites := map[string]string{}
+	s.server.Use(middleware.Static("ui/dist"))
 	for _, route := range frontendRoutes {
-		s.server.Static("/", "ui/dist")
 		rewrites[route] = "/"
 	}
 	s.server.Pre(middleware.Rewrite(rewrites))
 
 	clusterStore := storeadapter.NewClusterStore(s.ds)
 	clusterService := services.NewClusterService(clusterStore)
-	s.server.GET("/api/clusters", clusterService.GetClusters)
+	s.server.GET("/api/cluster", clusterService.GetCluster)
+	s.server.GET("/api/clusters", clusterService.ListClusters)
 	s.server.GET("/api/clusternames", clusterService.GetClusterNames)
 	s.server.POST("/api/clusters", clusterService.AddCluster)
 	s.server.PUT("/api/clusters", clusterService.UpdateCluster)
 	s.server.DELETE("/api/clusters/:clusterName", clusterService.DelCluster)
+
+	// definitions
+	s.server.GET("/api/clusters/:clusterName/componentdefinitions", clusterService.ListComponentDef)
+	s.server.GET("/api/clusters/:clusterName/traitdefinitions", clusterService.ListTraitDef)
 
 	// application
 	appStore := storeadapter.NewApplicationStore(s.ds)
@@ -94,6 +100,11 @@ func (s *restServer) registerServices() {
 
 	velaInstallService := services.NewVelaInstallService(clusterStore)
 	s.server.GET("/api/clusters/:cluster/installvela", velaInstallService.InstallVela)
+	s.server.GET("/api/clusters/:cluster/isvelainstalled", velaInstallService.IsVelaInstalled)
+
+	// show Definition schema
+	schemaService := services.NewSchemaService(clusterStore)
+	s.server.GET("/api/clusters/:cluster/schema", schemaService.GetWorkloadSchema)
 }
 
 func (s *restServer) startHTTP(ctx context.Context) error {
