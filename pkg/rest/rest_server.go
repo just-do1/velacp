@@ -77,6 +77,22 @@ func (s *restServer) registerServices() {
 	}
 	s.server.Pre(middleware.Rewrite(rewrites))
 
+	capabilityStore := storeadapter.NewCapabilityStore(s.ds)
+	capabilityService := services.NewCapabilityService(capabilityStore)
+	s.server.GET("/api/capabilities", capabilityService.ListCapabilities)
+	s.server.GET("/api/capabilities/:capabilityName", capabilityService.GetCapability)
+	s.server.POST("/api/capabilities/:capabilityName/install", capabilityService.InstallCapability)
+
+	catalogStore := storeadapter.NewCatalogStore(s.ds)
+	catalogService := services.NewCatalogService(catalogStore, capabilityStore)
+	s.server.GET("/api/catalogs", catalogService.ListCatalogs)
+	s.server.POST("/api/catalogs", catalogService.AddCatalog)
+	s.server.PUT("/api/catalogs", catalogService.UpdateCatalog)
+	s.server.GET("/api/catalogs/:catalogName", catalogService.GetCatalog)
+	s.server.DELETE("/api/catalogs/:catalogName", catalogService.DelCatalog)
+	s.server.GET("/api/catalogs/:catalogName/capabilities", catalogService.GetCapabilities)
+	s.server.POST("/api/catalogs/:catalogName/sync", catalogService.SyncCatalog)
+
 	clusterStore := storeadapter.NewClusterStore(s.ds)
 	clusterService := services.NewClusterService(clusterStore)
 	s.server.GET("/api/cluster", clusterService.GetCluster)
@@ -94,9 +110,10 @@ func (s *restServer) registerServices() {
 	appStore := storeadapter.NewApplicationStore(s.ds)
 	applicationService := services.NewApplicationService(appStore, clusterStore)
 	s.server.GET("/api/clusters/:cluster/applications", applicationService.GetApplications)
+	s.server.GET("/api/clusters/:cluster/applications/:application", applicationService.GetApplicationDetail)
 	s.server.POST("/api/clusters/:cluster/applications", applicationService.AddApplications)
 	s.server.PUT("/api/clusters/:cluster/applications", applicationService.UpdateApplications)
-	s.server.DELETE("/api/clusters/:cluster/applications", applicationService.RemoveApplications)
+	s.server.DELETE("/api/clusters/:cluster/applications/:application", applicationService.RemoveApplications)
 
 	velaInstallService := services.NewVelaInstallService(clusterStore)
 	s.server.GET("/api/clusters/:cluster/installvela", velaInstallService.InstallVela)
