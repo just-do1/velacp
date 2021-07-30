@@ -6,6 +6,14 @@ GIT_COMMIT      ?= git-$(shell git rev-parse --short HEAD)
 ERR		= echo ${TIME} ${RED}[FAIL]${CNone}
 OK		= echo ${TIME} ${GREEN}[ OK ]${CNone}
 
+PROJECT_VERSION_VAR    := github.com/oam-dev/velacp/pkg/version.Version
+PROJECT_GITVERSION_VAR := github.com/oam-dev/velacp/pkg/version.GitRevision
+LDFLAGS             ?= "-X $(PROJECT_VERSION_VAR)=$(PROJECT_VERSION) -X $(PROJECT_GITVERSION_VAR)=$(GIT_COMMIT)"
+
+GOX         = go run github.com/mitchellh/gox
+TARGETS     := darwin/amd64 linux/amd64 windows/amd64
+DIST_DIRS   := find * -name "*-*" -type d -exec
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -13,12 +21,15 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Image URL to use all building/pushing image targets
+VELA_CP_IMAGE      ?= vela-control-plane:latest
+
 all: build
 
 build: build-ui build-cp
 
 build-ui:
-	cd ui/ && yarn build &&	cd ..
+	cd ui/ && yarn install && yarn build &&	cd ..
 
 build-cp:
 	go build -o _bin/velacp ./cmd/velacp/main.go
@@ -26,16 +37,35 @@ build-cp:
 build-cli:
 	go build -o _bin/velactl ./cmd/velactl/main.go
 
+cross-build:
+	GO111MODULE=on CGO_ENABLED=0 $(GOX) -ldflags $(LDFLAGS) -parallel=2 -output="_bin/{{.OS}}-{{.Arch}}/velacp" -osarch="$(TARGETS)" ./cmd/velacp/
+
+compress:
+	( \
+		echo "\n## Release Info\nVERSION: $(PROJECT_VERSION)" >> README.md && \
+		echo "GIT_COMMIT: $(GIT_COMMIT_LONG)\n" >> README.md && \
+		cd _bin && \
+		mkdir ui && \
+		cp -r ../ui/dist ui && \
+		$(DIST_DIRS) cp -r ui {} \; && \
+		$(DIST_DIRS) cp ../LICENSE {} \; && \
+		$(DIST_DIRS) cp ../README.md {} \; && \
+		$(DIST_DIRS) tar -zcf velacp-{}.tar.gz {} \; && \
+		$(DIST_DIRS) zip -r velacp-{}.zip {} \; && \
+		sha256sum velacp-* > sha256sums.txt \
+	)
+
 proto:
 	hack/gen_proto.sh
 
 # Run tests
-test: fmt vet
+test: vet lint staticcheck
 	go test ./pkg/... ./cmd/...
 
 # Run go fmt against code
 fmt:
 	go fmt ./pkg/... ./cmd/...
+	$(GOIMPORTS) -local github.com/oam-dev/velacp -w $$(go list -f {{.Dir}} ./...)
 
 # Run go vet against code
 vet:
@@ -60,6 +90,15 @@ staticcheck: staticchecktool
 
 lint: golangci
 	$(GOLANGCILINT) run ./...
+
+# Build the docker image
+docker-build: build-ui
+	docker build --build-arg=VERSION=$(VELA_CP_VERSION) --build-arg=GITVERSION=$(GIT_COMMIT) -t $(VELA_CP_IMAGE) .
+
+# Push the docker image
+docker-push:
+	docker push $(VELA_CP_IMAGE)
+
 
 GOLANGCILINT_VERSION ?= v1.31.0
 
@@ -88,3 +127,16 @@ STATICCHECK=$(GOBIN)/staticcheck
 else
 STATICCHECK=$(shell which staticcheck)
 endif
+
+.PHONY: goimports
+goimports:
+ifeq (, $(shell which goimports))
+	@{ \
+	set -e ;\
+	GO111MODULE=off go get -u golang.org/x/tools/cmd/goimports ;\
+	}
+GOIMPORTS=$(GOBIN)/goimports
+else
+GOIMPORTS=$(shell which goimports)
+endif
+

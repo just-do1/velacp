@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	echo "github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+
 	"github.com/oam-dev/velacp/pkg/datastore"
 	"github.com/oam-dev/velacp/pkg/datastore/storeadapter"
 	"github.com/oam-dev/velacp/pkg/log"
@@ -45,6 +46,7 @@ func New(d datastore.DataStore, cfg Config) RestServer {
 
 	return s
 }
+
 func newEchoInstance() *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
@@ -112,6 +114,7 @@ func (s *restServer) registerServices() {
 	s.server.GET("/api/clusters/:cluster/applications", applicationService.GetApplications)
 	s.server.GET("/api/clusters/:cluster/applications/:application", applicationService.GetApplicationDetail)
 	s.server.POST("/api/clusters/:cluster/applications", applicationService.AddApplications)
+	s.server.POST("/api/clusters/:cluster/appYaml", applicationService.AddApplicationYaml)
 	s.server.PUT("/api/clusters/:cluster/applications", applicationService.UpdateApplications)
 	s.server.DELETE("/api/clusters/:cluster/applications/:application", applicationService.RemoveApplications)
 
